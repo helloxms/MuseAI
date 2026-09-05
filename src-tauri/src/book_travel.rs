@@ -338,6 +338,9 @@ pub fn build_scene_writer_call(
         "assembledWorldModel": writer_request.state.get("assembledWorldModel").cloned().unwrap_or(Value::Null),
         "currentState": writer_request.state.get("currentState").cloned().unwrap_or(Value::Null),
         "summaryMemory": writer_request.state.get("summaryMemory").cloned().unwrap_or(Value::Null),
+        "keyChoices": writer_request.state.get("keyChoices").cloned().unwrap_or(Value::Null),
+        "unresolvedConflicts": writer_request.state.get("unresolvedConflicts").cloned().unwrap_or(Value::Null),
+        "divergenceFromOutline": writer_request.state.get("divergenceFromOutline").cloned().unwrap_or(Value::Null),
         "recentScenes": writer_request.state.get("recentScenes").cloned().unwrap_or(Value::Null),
         "recentTurns": writer_request.state.get("recentTurns").cloned().unwrap_or(Value::Null),
         "plannedScene": writer_request.state.get("plannedScene").cloned().unwrap_or(Value::Null),
@@ -366,11 +369,11 @@ fn build_user_prompt(
             "请输出严格 JSON，只包含 classification 字段。classification 只能是 insert-beat 或 change-scene。"
         }
         BookTravelRole::ScenePlanner => {
-            "规划前检查世界规则、用户资源、已知信息、当前时间与地点。请输出严格 JSON，字段包含 id、title、summary、currentSituation、time、location、activeCharacters、stateChanges、divergence、storyProgress、endingStatus、sceneGoals、entryBeatGuidance、writerInstructions；stateChanges 不要包含 time 或 location。"
+            "规划前检查世界规则、用户资源、已知信息、当前时间与地点，以及 keyChoices、unresolvedConflicts、divergenceFromOutline。必须延续仍未解决的冲突，不得无故遗忘用户关键选择。请输出严格 JSON，字段包含 id、title、summary、currentSituation、time、location、activeCharacters、stateChanges、divergence、storyProgress、endingStatus、sceneGoals、entryBeatGuidance、writerInstructions；stateChanges 不要包含 time 或 location。"
         }
         BookTravelRole::SceneWriter => "",
         BookTravelRole::MemoryKeeper => {
-            "请输出严格 JSON，字段为 summary、keyChoices、unresolvedConflicts、divergenceFromOutline。"
+            "请输出严格 JSON，字段为 summary、keyChoices、unresolvedConflicts、divergenceFromOutline。keyChoices 与 unresolvedConflicts 必须是当前仍有效的完整替换列表，不是本轮增量；程序会保存这些字段并在后续规划与写作中读取。"
         }
         BookTravelRole::EndingJudge => {
             "请输出严格 JSON，字段为 finalEnding、userKeyChoices、originalOutlineComparison、characterOutcomes、worldlineName、divergenceScore。"
@@ -1528,6 +1531,9 @@ mod tests {
         assert!(call.user_prompt.contains("volatileMemory"));
         assert!(call.user_prompt.contains("assembledWorldModel"));
         assert!(call.user_prompt.contains("summaryMemory"));
+        assert!(call.user_prompt.contains("keyChoices"));
+        assert!(call.user_prompt.contains("unresolvedConflicts"));
+        assert!(call.user_prompt.contains("divergenceFromOutline"));
         assert!(call.user_prompt.contains("writerInstructions"));
     }
 

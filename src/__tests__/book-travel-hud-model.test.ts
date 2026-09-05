@@ -121,4 +121,25 @@ describe('buildBookTravelHudModel', () => {
     expect(model.recap.recentTurns.map((turn) => turn.userInput)).toEqual(['行动 3', '行动 4', '行动 5']);
     expect(new Set(model.recap.recentTurns.map((turn) => turn.id)).size).toBe(3);
   });
+
+  it('surfaces persisted plot ledger fields in the journey section', () => {
+    const model = buildBookTravelHudModel({
+      userCharacter: { name: '林晚', identity: '替嫁者', goal: '查清真相' },
+      currentScene: null,
+      currentState: null,
+      volatileMemory: null,
+      summaryMemory: '林晚已转入正厅。',
+      keyChoices: ['主动去正厅见沈家人'],
+      unresolvedConflicts: ['替嫁真相未明', '沈霜仍在试探'],
+      divergenceFromOutline: '偏离原书回避路线',
+      turns: [],
+      isCompleted: false,
+    });
+
+    expect(model.journey).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: '关键选择', values: ['主动去正厅见沈家人'] }),
+      expect.objectContaining({ label: '未决冲突', values: ['替嫁真相未明', '沈霜仍在试探'] }),
+      expect.objectContaining({ label: '偏离原大纲', value: '偏离原书回避路线' }),
+    ]));
+  });
 });

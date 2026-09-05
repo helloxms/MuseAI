@@ -29,6 +29,9 @@ describe('useBookTravelStore', () => {
     expect(state.currentBeatId).toBeNull();
     expect(state.turns).toEqual([]);
     expect(state.summaryMemory).toBe('');
+    expect(state.keyChoices).toEqual([]);
+    expect(state.unresolvedConflicts).toEqual([]);
+    expect(state.divergenceFromOutline).toBe('');
     expect(state.ending).toBeNull();
     expect(state.isCompleted).toBe(false);
   });
@@ -135,6 +138,11 @@ describe('useBookTravelStore', () => {
       createdBeatIds: ['beat-2'],
     });
     store.updateSummaryMemory('已进入沈府主线。');
+    store.updatePlotMemory({
+      keyChoices: ['主动推门'],
+      unresolvedConflicts: ['替嫁局未拆穿'],
+      divergenceFromOutline: '用户提前离开喜房',
+    });
     store.finishSession({
       finalEnding: '林晚改写婚宴死局。',
       worldlineName: '红烛未灭线',
@@ -147,6 +155,9 @@ describe('useBookTravelStore', () => {
     expect(state.turns[0].stateSnapshot).toEqual({ time: '夜半', location: '沈府' });
     expect(state.volatileMemory).toEqual({ clues: ['玉佩发热'] });
     expect(state.summaryMemory).toBe('已进入沈府主线。');
+    expect(state.keyChoices).toEqual(['主动推门']);
+    expect(state.unresolvedConflicts).toEqual(['替嫁局未拆穿']);
+    expect(state.divergenceFromOutline).toBe('用户提前离开喜房');
     expect(state.isCompleted).toBe(true);
     expect(state.ending?.worldlineName).toBe('红烛未灭线');
   });

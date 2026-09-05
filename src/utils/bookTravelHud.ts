@@ -53,6 +53,9 @@ export interface BuildBookTravelHudModelInput {
   currentState: unknown | null;
   volatileMemory: Record<string, unknown> | null;
   summaryMemory: string;
+  keyChoices?: string[];
+  unresolvedConflicts?: string[];
+  divergenceFromOutline?: string;
   turns: BookTravelTurnSnapshot[];
   isCompleted: boolean;
 }
@@ -261,6 +264,9 @@ export const buildBookTravelHudModel = ({
   currentState,
   volatileMemory,
   summaryMemory,
+  keyChoices,
+  unresolvedConflicts,
+  divergenceFromOutline,
   turns,
   isCompleted,
 }: BuildBookTravelHudModelInput): BookTravelHudModel => {
@@ -275,6 +281,9 @@ export const buildBookTravelHudModel = ({
       ? createEntry('journey.identity', '扮演身份', identity)
       : null,
     userCharacter ? createEntry('journey.goal', '当前目标', userCharacter.goal) : null,
+    createEntry('journey.conflicts', '未决冲突', unresolvedConflicts, { label: '未决冲突', group: 'world' }),
+    createEntry('journey.choices', '关键选择', keyChoices, { label: '关键选择', group: 'world' }),
+    createEntry('journey.divergence', '偏离原大纲', divergenceFromOutline, { label: '偏离原大纲', group: 'world' }),
   ].filter((entry): entry is BookTravelHudEntry => entry !== null);
 
   const time = findStateValue(state, ['time', 'currentTime', 'timeOfDay']) ?? currentScene?.time ?? null;

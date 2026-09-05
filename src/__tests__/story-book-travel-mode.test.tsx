@@ -129,7 +129,12 @@ const defaultInvoke = async (command: string, args?: any): Promise<any> => {
     return { runId };
   }
   if (command === 'save_agent_session') return { id: 'story-session-test', title: '新故事', savedAt: Date.now(), sessionKind: 'bookTravel' };
-  if (command === 'summarize_book_travel_memory') return JSON.stringify({ summary: '林晚继续推进替嫁线。' });
+  if (command === 'summarize_book_travel_memory') return JSON.stringify({
+    summary: '林晚继续推进替嫁线。',
+    keyChoices: ['主动去正厅见沈家人'],
+    unresolvedConflicts: ['替嫁真相未明'],
+    divergenceFromOutline: '用户主动进入正厅，偏离回避路线',
+  });
   if (command === 'save_app_state' || command === 'load_app_state') return '';
   return undefined;
 };
@@ -294,6 +299,9 @@ function getCurrentBookTravelSnapshot(overrides: Partial<BookTravelSnapshot> = {
     currentBeatId: state.currentBeatId,
     turns: state.turns,
     summaryMemory: state.summaryMemory,
+    keyChoices: state.keyChoices,
+    unresolvedConflicts: state.unresolvedConflicts,
+    divergenceFromOutline: state.divergenceFromOutline,
     isCompleted: state.isCompleted,
     ending: state.ending,
     input: state.input,
@@ -792,6 +800,15 @@ describe('Story book-travel mode', () => {
     });
 
     expect(await screen.findByText('她推门走入正厅。')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('summarize_book_travel_memory', expect.anything());
+    });
+    await waitFor(() => {
+      expect(useBookTravelStore.getState().keyChoices).toEqual(['主动去正厅见沈家人']);
+      expect(useBookTravelStore.getState().unresolvedConflicts).toEqual(['替嫁真相未明']);
+      expect(useBookTravelStore.getState().divergenceFromOutline).toBe('用户主动进入正厅，偏离回避路线');
+      expect(useBookTravelStore.getState().summaryMemory).toBe('林晚继续推进替嫁线。');
+    });
     fireEvent.change(inputBox, { target: { value: '继续观察正厅' } });
     await waitFor(() => expect(sendButton).toBeEnabled());
   });
@@ -1096,6 +1113,29 @@ describe('Story book-travel mode', () => {
     expect(classifyCall?.[1].request.systemPrompt).toContain('{"classification":"insert-beat"}');
     expect(classifyCall?.[1].request.systemPrompt).not.toContain('reason');
     expect(classifyCall?.[1].request.systemPrompt).not.toContain('meta');
+  });
+
+  it('feeds persisted plot ledger into the next classifier request', async () => {
+    setActiveBookTravelScene();
+    useBookTravelStore.setState({
+      keyChoices: ['主动去正厅见沈家人'],
+      unresolvedConflicts: ['替嫁真相未明'],
+      divergenceFromOutline: '偏离回避路线',
+    });
+
+    renderWithRouter(<Story />);
+
+    fireEvent.change(screen.getByPlaceholderText(/说些什么/), { target: { value: '继续观察' } });
+    fireEvent.click(document.querySelector('.de-ai-agent-run-button') as HTMLButtonElement);
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith('classify_book_travel_input', expect.anything());
+    });
+    const classifyCall = invokeMock.mock.calls.find(([command]) => command === 'classify_book_travel_input');
+    const state = classifyCall?.[1].request.state;
+    expect(state.keyChoices).toEqual(['主动去正厅见沈家人']);
+    expect(state.unresolvedConflicts).toEqual(['替嫁真相未明']);
+    expect(state.divergenceFromOutline).toBe('偏离回避路线');
   });
 
   it('only prepends book-travel presets to scene-writer requests', async () => {

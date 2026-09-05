@@ -41,6 +41,7 @@ import { prependStylePresets } from '../utils/stylePresets';
 import { buildBookTravelCharacterDetails } from '../utils/bookTravelSaveDetails';
 import { buildBookTravelHudModel } from '../utils/bookTravelHud';
 import { BookTravelStatusHud } from '../components/BookTravelStatusHud';
+import { getBookTravelPlotMemory, parseBookTravelMemoryKeeperResult } from '../utils/bookTravelMemory';
 
 interface ChatStreamEvent {
   runId: string;
@@ -314,6 +315,14 @@ const formatElapsed = (ms: number) => {
 const extractPartialContent = (jsonStr: string): string | null => {
   const match = jsonStr.match(/"content"\s*:\s*"([^"]*)/);
   return match ? match[1] : null;
+};
+
+const getPlotMemoryFromStore = () => getBookTravelPlotMemory(useBookTravelStore.getState());
+
+const applyMemoryKeeperResult = (raw: unknown) => {
+  const parsed = parseBookTravelMemoryKeeperResult(raw);
+  if (!parsed) return;
+  useBookTravelStore.getState().updatePlotMemory(parsed);
 };
 
 const savedProgressDateFormatter = new Intl.DateTimeFormat('zh-CN', {
@@ -818,6 +827,9 @@ const useStoryView = () => {
     currentState: bookTravelStore.currentState,
     volatileMemory: bookTravelStore.volatileMemory,
     summaryMemory: bookTravelStore.summaryMemory,
+    keyChoices: bookTravelStore.keyChoices,
+    unresolvedConflicts: bookTravelStore.unresolvedConflicts,
+    divergenceFromOutline: bookTravelStore.divergenceFromOutline,
     turns: bookTravelStore.turns,
     isCompleted: bookTravelStore.isCompleted,
   }) : null;
@@ -892,7 +904,7 @@ const useStoryView = () => {
       volatileMemory,
       assembledWorldModel,
       currentState,
-      summaryMemory: useBookTravelStore.getState().summaryMemory || '',
+      ...getPlotMemoryFromStore(),
       recentScenes,
       recentTurns,
       plannedScene,
@@ -935,7 +947,7 @@ const useStoryView = () => {
     const endingStatus = readPlanText(plan, 'endingStatus', 'ending_status');
     if (endingStatus && endingStatus !== 'none' && endingStatus !== 'active') {
       const judgeConfig = settings.agentConfigs?.bookTravelEndingJudge || {};
-      const judgeState = { stableMemory, volatileMemory, assembledWorldModel, currentState, summaryMemory: latestState.summaryMemory || '', recentScenes: [...recentScenes.slice(-3), completedScene], recentTurns: [...recentTurnsWithoutCurrent.slice(-5), newTurn] };
+      const judgeState = { stableMemory, volatileMemory, assembledWorldModel, currentState, ...getPlotMemoryFromStore(), recentScenes: [...recentScenes.slice(-3), completedScene], recentTurns: [...recentTurnsWithoutCurrent.slice(-5), newTurn] };
       const judgeRequest = buildBookTravelRequest('ending-judge', settings.bookTravelEndingJudgePrompt, judgeConfig, materials, judgeState);
       const endingJsonStr = await invoke<string>('judge_book_travel_ending', { request: judgeRequest });
       const ending = cleanAndParseJSON(endingJsonStr);
@@ -943,10 +955,10 @@ const useStoryView = () => {
       message.success('已达成穿书结局！');
     } else {
       const keeperConfig = settings.agentConfigs?.bookTravelMemoryKeeper || {};
-      const keeperState = { stableMemory, volatileMemory, assembledWorldModel, currentState, summaryMemory: latestState.summaryMemory || '', recentScenes: [...recentScenes.slice(-3), completedScene], recentTurns: [...recentTurnsWithoutCurrent.slice(-5), newTurn] };
+      const keeperState = { stableMemory, volatileMemory, assembledWorldModel, currentState, ...getPlotMemoryFromStore(), recentScenes: [...recentScenes.slice(-3), completedScene], recentTurns: [...recentTurnsWithoutCurrent.slice(-5), newTurn] };
       const keeperRequest = buildBookTravelRequest('memory-keeper', settings.bookTravelMemoryKeeperPrompt, keeperConfig, materials, keeperState);
       invoke<string>('summarize_book_travel_memory', { request: keeperRequest }).then((resStr) => {
-        try { const res = cleanAndParseJSON(resStr); if (res.summary) useBookTravelStore.getState().updateSummaryMemory(res.summary); }
+        try { applyMemoryKeeperResult(cleanAndParseJSON(resStr)); }
         catch (e) { console.error('Failed to parse memory keeper summary:', e); }
       }).catch((err) => { console.error('Failed to update memory keeper:', err); });
     }
@@ -968,7 +980,7 @@ const useStoryView = () => {
         characterCards: selectedCharacterCards.map((cc: any) => ({ id: cc.id, title: cc.title, content: cc.content })),
       };
       const writerConfig = settings.agentConfigs?.bookTravelSceneWriter || {};
-      const writerState = { stableMemory, volatileMemory, assembledWorldModel, currentState: bookTravelStore.currentState, summaryMemory: bookTravelStore.summaryMemory || '', recentScenes: scenes.slice(-3), recentTurns: turns.slice(-5), writerInstructions: userInput };
+      const writerState = { stableMemory, volatileMemory, assembledWorldModel, currentState: bookTravelStore.currentState, ...getPlotMemoryFromStore(), recentScenes: scenes.slice(-3), recentTurns: turns.slice(-5), writerInstructions: userInput };
       const writerRequest = buildBookTravelRequest('scene-writer', effectiveBookTravelSceneWriterPrompt, writerConfig, materials, writerState);
       const currentScene = scenes.find((s) => s.id === bookTravelStore.currentSceneId);
       const allowedSpeakers = currentScene?.activeCharacters || [];
@@ -1042,7 +1054,7 @@ const useStoryView = () => {
         characterCards: selectedCharacterCards.map((cc: any) => ({ id: cc.id, title: cc.title, content: cc.content })),
       };
       const plannerConfig = settings.agentConfigs?.bookTravelScenePlanner || {};
-      const plannerState = { stableMemory, volatileMemory, assembledWorldModel, currentState: bookTravelStore.currentState, summaryMemory: bookTravelStore.summaryMemory || '', recentScenes: scenes.slice(-3), recentTurns: turns.slice(-5), userCharacter };
+      const plannerState = { stableMemory, volatileMemory, assembledWorldModel, currentState: bookTravelStore.currentState, ...getPlotMemoryFromStore(), recentScenes: scenes.slice(-3), recentTurns: turns.slice(-5), userCharacter };
       const plannerRequest = buildBookTravelRequest('scene-planner', settings.bookTravelPlotPlannerPrompt, plannerConfig, materials, plannerState);
       const plannerPlanStr = await runBookTravelStreamTask('start_plan_book_travel_scene_stream', plannerRequest, { userInput });
       plan = cleanAndParseJSON(plannerPlanStr);
@@ -1243,7 +1255,7 @@ const useStoryView = () => {
       };
 
       const plannerConfig = settings.agentConfigs?.bookTravelScenePlanner || {};
-      const plannerState = { stableMemory, volatileMemory, assembledWorldModel, currentState: null, summaryMemory: '', recentScenes: [], recentTurns: [], userCharacter, selectedEntryPointId };
+      const plannerState = { stableMemory, volatileMemory, assembledWorldModel, currentState: null, ...getPlotMemoryFromStore(), recentScenes: [], recentTurns: [], userCharacter, selectedEntryPointId };
       const plannerRequest = buildBookTravelRequest('scene-planner', settings.bookTravelPlotPlannerPrompt, plannerConfig, materials, plannerState);
       const plannerInput = `确认以入场点 [${entryPoint.title}] 入场，扮演新身份 [${userCharacter.name}]（${userCharacter.identity}）。\n详细局势：${entryPoint.situation || entryPoint.summary || ''}\n初始目标：${entryPoint.initialGoal || ''}\n面临风险：${entryPoint.risk || ''}`;
       const plannerPlanStr = await runBookTravelStreamTask('start_plan_book_travel_scene_stream', plannerRequest, { userInput: plannerInput });
@@ -1286,7 +1298,7 @@ const useStoryView = () => {
       setWriterOutput('');
       const writerConfig = settings.agentConfigs?.bookTravelSceneWriter || {};
       const writerInstructions = readPlanText(plan, 'writerInstructions', 'writer_instructions') || plannerInput;
-      const writerState = { stableMemory, volatileMemory, assembledWorldModel, currentState: newCurrentState, summaryMemory: '', recentScenes: [], recentTurns: [], plannedScene, writerInstructions };
+      const writerState = { stableMemory, volatileMemory, assembledWorldModel, currentState: newCurrentState, ...getPlotMemoryFromStore(), recentScenes: [], recentTurns: [], plannedScene, writerInstructions };
       const writerRequest = buildBookTravelRequest('scene-writer', effectiveBookTravelSceneWriterPrompt, writerConfig, materials, writerState);
       const sceneJsonStr = await runBookTravelStreamTask('start_write_book_travel_change_scene_stream', writerRequest, { userInput: writerInstructions, allowedSpeakers: plannedScene.activeCharacters || [] });
 
@@ -1376,7 +1388,7 @@ const useStoryView = () => {
           volatileMemory: latestBookTravelState.volatileMemory,
           assembledWorldModel: latestBookTravelState.assembledWorldModel,
           currentState: latestBookTravelState.currentState,
-          summaryMemory: latestBookTravelState.summaryMemory || '',
+          ...getBookTravelPlotMemory(latestBookTravelState),
           recentScenes: latestBookTravelState.scenes.slice(-3),
           recentTurns: latestBookTravelState.turns.slice(-5),
           userCharacter: latestBookTravelState.userCharacter,

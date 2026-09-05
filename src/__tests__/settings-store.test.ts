@@ -251,6 +251,9 @@ describe('Settings store default exports', () => {
     expect(defaultBookTravelSceneWriterPrompt).toContain('只输出 beat');
     expect(defaultBookTravelSceneWriterPrompt).not.toContain('activeCharacters：字符串数组');
     expect(defaultBookTravelMemoryKeeperPrompt).toContain('穿书记忆整理员');
+    expect(defaultBookTravelMemoryKeeperPrompt).toContain('完整列表');
+    expect(defaultBookTravelPlotPlannerPrompt).toContain('unresolvedConflicts');
+    expect(defaultBookTravelSceneWriterPrompt).toContain('keyChoices');
     expect(defaultBookTravelEndingJudgePrompt).toContain('穿书结局裁判');
   });
 

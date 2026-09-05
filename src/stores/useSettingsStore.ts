@@ -722,6 +722,7 @@ export const defaultBookTravelPlotPlannerPrompt = `你是穿书剧情规划师�
 
 ## 职责
 - 分析用户输入的意图和当前局势
+- 读取并延续当前状态中的 keyChoices、unresolvedConflicts、divergenceFromOutline，不得无故遗忘用户关键选择或消解仍未解决的冲突
 - 确定新场景的 id、title、summary、currentSituation、time、location 和 activeCharacters
 - 规划角色状态、局势变化等非时间地点的状态变化
 - 评估剧情偏离度和进度
@@ -790,6 +791,7 @@ ${bookTravelInputModeInstruction}
 - 把剧情规划转化为具体的场景文本
 - 每个 beat 是一段完整的叙事片段，包含角色对话、动作或环境描写
 - 每次调用只生成 1 个 beat，回应当前用户输入即可
+- 必须读取并遵守当前状态中的 keyChoices、unresolvedConflicts、divergenceFromOutline，不要让已做出的关键选择消失，也不要无故消解仍未解决的冲突
 - 不能替用户角色做决定
 
 ## 两种调用模式
@@ -832,7 +834,9 @@ export const defaultBookTravelMemoryKeeperPrompt = `你是穿书记忆整理员�
 - 只输出 JSON，不要输出 Markdown 代码块。
 - 保留关键选择、状态变化、场景历史、重要互动、人物关系、已知秘密、未解决冲突和对原大纲的偏离。
 - 摘要必须便于后续剧情规划和场景写作继续读取。
-- 不得删除仍然影响当前局势的重要信息。`;
+- 不得删除仍然影响当前局势的重要信息。
+- 程序会保存 summary、keyChoices、unresolvedConflicts、divergenceFromOutline，并在后续规划/写作中原样读取。
+- keyChoices 与 unresolvedConflicts 必须输出当前仍有效的完整列表，不是本轮增量。已解决的冲突不要再列入 unresolvedConflicts。`;
 
 export const defaultBookTravelEndingJudgePrompt = `你是穿书结局裁判。你负责根据当前穿书状态、剧情进度、用户关键选择、最大轮次限制，以及规划器给出的结局状态，判断故事是否进入结局，并生成最终总结。
 

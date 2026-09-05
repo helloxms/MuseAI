@@ -136,6 +136,9 @@ export interface BookTravelSnapshot {
   currentBeatId: string | null;
   turns: BookTravelTurnSnapshot[];
   summaryMemory: string;
+  keyChoices: string[];
+  unresolvedConflicts: string[];
+  divergenceFromOutline: string;
   isCompleted: boolean;
   ending: BookTravelEnding | null;
   input: string;
@@ -177,6 +180,12 @@ interface BookTravelState extends BookTravelSnapshot {
   removeLastBeatFromCurrentScene: () => void;
   updateBeatContent: (sceneId: string, beatId: string, content: string) => void;
   updateSummaryMemory: (summaryMemory: string) => void;
+  updatePlotMemory: (patch: Partial<{
+    summaryMemory: string;
+    keyChoices: string[];
+    unresolvedConflicts: string[];
+    divergenceFromOutline: string;
+  }>) => void;
   finishSession: (ending: BookTravelEnding) => void;
   saveAssembledMaterial: (material: BookTravelAssembledMaterialInput) => string;
   updateAssembledMaterial: (id: string, patch: Partial<BookTravelAssembledMaterialInput>) => void;
@@ -225,6 +234,9 @@ const initialState = {
   currentBeatId: null,
   turns: [],
   summaryMemory: '',
+  keyChoices: [],
+  unresolvedConflicts: [],
+  divergenceFromOutline: '',
   isCompleted: false,
   ending: null,
   input: '',
@@ -336,6 +348,12 @@ export const useBookTravelStore = create<BookTravelState>()(
         return { scenes: newScenes };
       }),
       updateSummaryMemory: (summaryMemory) => set({ summaryMemory }),
+      updatePlotMemory: (patch) => set((state) => ({
+        summaryMemory: patch.summaryMemory ?? state.summaryMemory,
+        keyChoices: patch.keyChoices ?? state.keyChoices,
+        unresolvedConflicts: patch.unresolvedConflicts ?? state.unresolvedConflicts,
+        divergenceFromOutline: patch.divergenceFromOutline ?? state.divergenceFromOutline,
+      })),
       finishSession: (ending) => set({ ending, isCompleted: true }),
       saveAssembledMaterial: (input) => {
         const now = Date.now();
@@ -495,6 +513,9 @@ const getBookTravelSnapshot = (): BookTravelSnapshot => {
     currentBeatId: state.currentBeatId,
     turns: state.turns,
     summaryMemory: state.summaryMemory,
+    keyChoices: state.keyChoices,
+    unresolvedConflicts: state.unresolvedConflicts,
+    divergenceFromOutline: state.divergenceFromOutline,
     isCompleted: state.isCompleted,
     ending: state.ending,
     input: state.input,
