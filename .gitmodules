@@ -1,0 +1,3 @@
+[submodule "zhijie_demo"]
+	path = zhijie_demo
+	url = ssh://git@localhost:2222/inovation/zhijie_demo.git
