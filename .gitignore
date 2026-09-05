@@ -9,6 +9,7 @@ lerna-debug.log*
 
 # Node
 node_modules/
+.pnpm-store/
 
 # Build output
 dist/
